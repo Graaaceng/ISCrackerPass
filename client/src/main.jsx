@@ -15,13 +15,14 @@ import Home from './pages/Home.jsx';
 import Items from './pages/Items.jsx';
 import StyleGuide from './pages/StyleGuide.jsx';
 import NotFound from './pages/NotFound.jsx';
+import PasswordStrength from './pages/PasswordStrength.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Home />} />
+          <Route index element={<PasswordStrength />} />
           <Route path="items" element={<Items />} />
           <Route path="style-guide" element={<StyleGuide />} />
           <Route path="*" element={<NotFound />} />

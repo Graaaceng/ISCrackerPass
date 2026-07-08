@@ -5,7 +5,7 @@ import useTheme from '../hooks/useTheme.js';
 
 // App shell shared by every page: ridge topline, navbar, footer.
 // Rename APP_NAME per project (or lift it into an env/config file).
-const APP_NAME = 'App Template';
+const APP_NAME = 'ISCrackerPass';
 
 function SunIcon() {
   return (
@@ -38,8 +38,8 @@ export default function Layout() {
             <span className="brand-app">{APP_NAME}</span>
           </Link>
           <nav className="nav" aria-label="Main">
-            <NavLink to="/" end>Home</NavLink>
-            <NavLink to="/items">Items demo</NavLink>
+            <NavLink to="/" end>Crack It</NavLink>
+            <NavLink to="/items">Ranking</NavLink>
             <NavLink to="/style-guide">Style guide</NavLink>
             <button
               type="button"
