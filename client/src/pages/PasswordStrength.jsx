@@ -1,10 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { api } from '../api/client.js';
 
-// Everything here runs locally in the browser — the password never leaves
-// this page, is never sent to the server, and is never stored anywhere.
+// Everything here runs locally in the browser — the password itself never
+// leaves this page. Before anything touches the network it is reduced to a
+// SHA-256 hash (via Web Crypto), and only that hash plus a few non-reversible
+// stats (length, entropy, strength label) are sent to the server, so the
+// ranking/leaderboard feature can be built without ever transmitting or
+// storing a real password.
 // "Crack time" is a standard entropy estimate (charset size ^ length),
 // checked against a few illustrative guess-rates. It's an education/
 // awareness tool, not an actual password cracker.
+
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 const SCENARIOS = [
   {
@@ -104,9 +117,49 @@ export default function PasswordStrength() {
   const [display, setDisplay] = useState([]);
   const [lockedCount, setLockedCount] = useState(0);
 
+  const [ranking, setRanking] = useState([]);
+  const [rankingError, setRankingError] = useState('');
+  const [timesTested, setTimesTested] = useState(null);
+  const [currentHash, setCurrentHash] = useState('');
+
   const timerRef = useRef(null);
   const scheduleRef = useRef([]);
   const startRef = useRef(0);
+
+  async function refreshRanking() {
+    try {
+      const list = await api.get('/password-tests');
+      setRanking(list);
+      setRankingError('');
+    } catch (err) {
+      setRankingError(err.message);
+    }
+  }
+
+  // Load the leaderboard once on mount so it's visible even before this
+  // visitor has cracked anything themselves.
+  useEffect(() => {
+    refreshRanking();
+  }, []);
+
+  async function submitTestResult(pw, analysisSnapshot) {
+    try {
+      const hash = await sha256Hex(pw);
+      const label = strengthLabel(analysisSnapshot.isCommon ? 0 : analysisSnapshot.entropyBits).text;
+      const record = await api.post('/password-tests', {
+        hash,
+        length: analysisSnapshot.length,
+        entropyBits: analysisSnapshot.entropyBits,
+        strengthLabel: label,
+        isCommon: analysisSnapshot.isCommon,
+      });
+      setCurrentHash(hash);
+      setTimesTested(record.timesTested);
+      refreshRanking();
+    } catch (err) {
+      setRankingError(err.message);
+    }
+  }
 
   // Any edit to the password cancels an in-progress or finished animation —
   // start fresh rather than showing a stale result.
@@ -116,6 +169,8 @@ export default function PasswordStrength() {
     setShowResult(false);
     setLockedCount(0);
     setDisplay(password.split(''));
+    setTimesTested(null);
+    setCurrentHash('');
   }, [password]);
 
   useEffect(() => () => {
@@ -126,6 +181,7 @@ export default function PasswordStrength() {
     if (!password || cracking) return;
     const chars = password.split('');
     const n = chars.length;
+    const analysisSnapshot = analysis;
 
     // Give each character a random "lock-in" moment somewhere across the
     // animation window, sorted, so they resolve left-to-right-ish but not
@@ -162,6 +218,7 @@ export default function PasswordStrength() {
         setLockedCount(n);
         setCracking(false);
         setShowResult(true);
+        submitTestResult(chars.join(''), analysisSnapshot);
       }
     }, TICK_MS);
   }
@@ -281,18 +338,22 @@ export default function PasswordStrength() {
             </div>
           )}
         </div>
-        
-        <div style={{ marginTop: 'var(--space-4)', textAlign: 'center' }}>
-          <button
+
+        <div style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-4)', textAlign: 'center', }}>
+            <button
               type="button"
               className="btn btn-primary"
               onClick={startCracking}
               disabled={!password || cracking}
             >
               {cracking ? 'Cracking…' : 'Crack this password'}
-          </button>
+            </button>
         </div>
         
+        {password.length === 0 && (
+          <p className="notice">Type a password above, then hit "Crack this password" to watch it go.</p>
+        )}
+
         {showResult && (
           <div style={{ marginBottom: 'var(--space-4)', display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
             <span className={`badge badge-${strength.facet}`}>{strength.text}</span>
@@ -300,6 +361,11 @@ export default function PasswordStrength() {
               {analysis.length} characters · ~{analysis.entropyBits.toFixed(1)} bits of entropy
               {analysis.isCommon && ' · found in common password lists'}
             </span>
+            {timesTested !== null && (
+              <span className="badge badge-sun mono">
+                tested {timesTested} time{timesTested === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
         )}
 
@@ -344,6 +410,64 @@ export default function PasswordStrength() {
             })}
           </div>
         )}
+
+        <div className="card" style={{ marginTop: 'var(--space-5)' }}>
+          <h3>Leaderboard</h3>
+          <p style={{ color: 'var(--isc-muted)', fontSize: 'var(--text-sm)' }}>
+            Every password ever cracked here, ranked by strength. Only a one-way hash of each
+            password is stored — never the password itself — so this list can show repeats
+            without knowing what anyone actually typed.
+          </p>
+
+          {rankingError && <p className="notice error">Couldn't load the leaderboard: {rankingError}</p>}
+
+          {!rankingError && ranking.length === 0 && (
+            <p style={{ color: 'var(--isc-muted)' }}>No passwords cracked yet — be the first.</p>
+          )}
+
+          {ranking.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="mono" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {['#', 'Length', 'Entropy', 'Strength', 'Times tested'].map((h) => (
+                      <th
+                        key={h}
+                        style={{
+                          textAlign: 'left',
+                          padding: 'var(--space-2)',
+                          borderBottom: '1px solid var(--isc-line)',
+                          color: 'var(--isc-muted)',
+                          fontWeight: 500,
+                          fontSize: 'var(--text-xs)',
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ranking.map((r, i) => (
+                    <tr
+                      key={r._id}
+                      style={{
+                        background: r.hash === currentHash ? 'var(--isc-paper-dim)' : undefined,
+                        borderBottom: '1px solid var(--isc-line)',
+                      }}
+                    >
+                      <td style={{ padding: 'var(--space-2)' }}>{i + 1}</td>
+                      <td style={{ padding: 'var(--space-2)' }}>{r.length}</td>
+                      <td style={{ padding: 'var(--space-2)' }}>{r.entropyBits.toFixed(1)} bits</td>
+                      <td style={{ padding: 'var(--space-2)' }}>{r.strengthLabel}</td>
+                      <td style={{ padding: 'var(--space-2)' }}>{r.timesTested}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         <div className="card" style={{ marginTop: 'var(--space-5)' }}>
           <h3>How this works</h3>
