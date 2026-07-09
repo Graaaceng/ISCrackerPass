@@ -1,16 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client.js';
 
-// Everything here runs locally in the browser — the password itself never
-// leaves this page. Before anything touches the network it is reduced to a
-// SHA-256 hash (via Web Crypto), and only that hash plus a few non-reversible
-// stats (length, entropy, strength label) are sent to the server, so the
-// ranking/leaderboard feature can be built without ever transmitting or
-// storing a real password.
-// "Crack time" is a standard entropy estimate (charset size ^ length),
-// checked against a few illustrative guess-rates. It's an education/
-// awareness tool, not an actual password cracker.
-
 async function sha256Hex(text) {
   const bytes = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
@@ -260,7 +250,7 @@ export default function PasswordStrength() {
           className="card mono"
           style={{
             marginBottom: 'var(--space-4)',
-            background: 'var(--isc-hero-bg)',
+            background: 'var(--isc-ink-strong)',
             padding: 'var(--space-5) var(--space-4)',
           }}
         >
@@ -323,7 +313,7 @@ export default function PasswordStrength() {
                 marginTop: 'var(--space-3)',
                 height: '4px',
                 borderRadius: '999px',
-                background: 'var(--isc-ink-strong',
+                background: 'var(--isc-ink-strong)',
                 overflow: 'hidden',
               }}
             >
@@ -349,10 +339,6 @@ export default function PasswordStrength() {
               {cracking ? 'Cracking…' : 'Crack this password'}
             </button>
         </div>
-        
-        {password.length === 0 && (
-          <p className="notice">Type a password above, then hit "Crack this password" to watch it go.</p>
-        )}
 
         {showResult && (
           <div style={{ marginBottom: 'var(--space-4)', display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>

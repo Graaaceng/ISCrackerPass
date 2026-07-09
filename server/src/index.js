@@ -4,7 +4,6 @@ import morgan from 'morgan';
 import { connectDB, dbReady } from './config/db.js';
 import { requireDB } from './middleware/requireDB.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
-import itemsRouter from './routes/items.js';
 import passwordTestsRouter from './routes/passwordTests.js';
 
 const app = express();
@@ -19,7 +18,6 @@ app.get('/api/health', (req, res) => {
 });
 
 // Mount one router per resource here
-app.use('/api/items', requireDB, itemsRouter);
 app.use('/api/password-tests', requireDB, passwordTestsRouter);
 
 app.use(notFound);

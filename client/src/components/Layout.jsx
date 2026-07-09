@@ -39,8 +39,8 @@ export default function Layout() {
           </Link>
           <nav className="nav" aria-label="Main">
             <NavLink to="/" end>Crack It</NavLink>
-            <NavLink to="/items">Ranking</NavLink>
-            <NavLink to="/style-guide">Style guide</NavLink>
+            <NavLink to="/ranking">Ranking</NavLink>
+            <NavLink to="/voice-clone">Voice Clone</NavLink>
             <button
               type="button"
               className="theme-toggle"

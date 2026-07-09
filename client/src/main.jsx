@@ -11,11 +11,9 @@ import './styles/base.css';
 import './styles/app.css';
 
 import Layout from './components/Layout.jsx';
-import Home from './pages/Home.jsx';
-import Items from './pages/Items.jsx';
-import StyleGuide from './pages/StyleGuide.jsx';
 import NotFound from './pages/NotFound.jsx';
 import PasswordStrength from './pages/PasswordStrength.jsx'
+import VoiceClone from './pages/VoiceClone.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -23,8 +21,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<PasswordStrength />} />
-          <Route path="items" element={<Items />} />
-          <Route path="style-guide" element={<StyleGuide />} />
+          <Route path="voice-clone" element={<VoiceClone />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
